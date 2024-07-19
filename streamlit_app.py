@@ -1,26 +1,9 @@
 import streamlit as st
-import speech_recognition as sr
+from streamlit_mic_recorder import mic_recorder, speech_to_text
 from textblob import TextBlob
 from transformers import pipeline
 from gensim import corpora
 from gensim.models.ldamodel import LdaModel
-import numpy as np
-
-# Function to record and recognize speech
-def recognize_speech():
-    recognizer = sr.Recognizer()
-    with sr.Microphone() as source:
-        st.info("Listening...")
-        audio = recognizer.listen(source)
-        try:
-            text = recognizer.recognize_google(audio)
-            st.success("Recognized Text: " + text)
-            return text
-        except sr.UnknownValueError:
-            st.error("Could not understand the audio")
-        except sr.RequestError:
-            st.error("Could not request results; check your network connection")
-        return ""
 
 # Function to analyze sentiment
 def analyze_sentiment(text):
@@ -50,27 +33,42 @@ def topic_modeling(text):
 # Streamlit interface
 st.title("Live Speech-to-Text with Sentiment Analysis, Text Classification, and Topic Modeling")
 
-if st.button("Record Voice"):
-    text = recognize_speech()
-    if text:
-        # Sentiment Analysis
-        sentiment = analyze_sentiment(text)
-        st.write("Sentiment Analysis:")
-        st.write(f"Polarity: {sentiment.polarity}, Subjectivity: {sentiment.subjectivity}")
+state = st.session_state
 
-        # Text Classification
-        classifier = load_classifier()
-        classification = classify_text(text, classifier)
-        st.write("Text Classification:")
-        st.write(classification)
+if 'text_received' not in state:
+    state.text_received = []
 
-        # Topic Modeling
-        topics = topic_modeling(text)
-        st.write("Topic Context:")
-        for topic in topics:
-            st.write(topic)
+c1, c2 = st.columns(2)
+with c1:
+    st.write("Convert speech to text:")
+with c2:
+    text = speech_to_text(language='en', use_container_width=True, just_once=True, key='STT')
 
-        # Topic Context
-        topics = topic_modeling(text)
-        st.write("Topic Context:")
-        st.write(topics)
+if text:
+    state.text_received.append(text)
+
+for text in state.text_received:
+    st.text(text)
+
+    # Sentiment Analysis
+    sentiment = analyze_sentiment(text)
+    st.write("Sentiment Analysis:")
+    st.write(f"Polarity: {sentiment.polarity}, Subjectivity: {sentiment.subjectivity}")
+
+    # Text Classification
+    classifier = load_classifier()
+    classification = classify_text(text, classifier)
+    st.write("Text Classification:")
+    st.write(classification)
+
+    # Topic Modeling
+    topics = topic_modeling(text)
+    st.write("Topic Context:")
+    for topic in topics:
+        st.write(topic)
+
+st.write("Record your voice, and play the recorded audio:")
+audio = mic_recorder(start_prompt="⏺️", stop_prompt="⏹️", key='recorder')
+
+if audio:
+    st.audio(audio['bytes'])
