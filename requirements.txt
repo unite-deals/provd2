@@ -2,3 +2,4 @@ streamlit==1.16.0
 SpeechRecognition
 textblob
 gensim
+transformers
