@@ -3,3 +3,4 @@ SpeechRecognition
 textblob
 gensim
 transformers
+altair==4.2.2
