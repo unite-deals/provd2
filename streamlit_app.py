@@ -4,6 +4,7 @@ from textblob import TextBlob
 from transformers import pipeline
 from gensim import corpora
 from gensim.models.ldamodel import LdaModel
+import numpy as np
 
 # Function to record and recognize speech
 def recognize_speech():
@@ -19,6 +20,7 @@ def recognize_speech():
             st.error("Could not understand the audio")
         except sr.RequestError:
             st.error("Could not request results; check your network connection")
+        return ""
 
 # Function to analyze sentiment
 def analyze_sentiment(text):
@@ -27,8 +29,11 @@ def analyze_sentiment(text):
     return sentiment
 
 # Function to classify text
-def classify_text(text):
-    classifier = pipeline("zero-shot-classification")
+@st.cache(allow_output_mutation=True)
+def load_classifier():
+    return pipeline("zero-shot-classification")
+
+def classify_text(text, classifier):
     labels = ["business", "technology", "entertainment", "sports", "politics"]
     result = classifier(text, candidate_labels=labels)
     return result
@@ -37,13 +42,13 @@ def classify_text(text):
 def topic_modeling(text):
     words = text.lower().split()
     dictionary = corpora.Dictionary([words])
-    corpus = [dictionary.doc2bow([word]) for word in words]
+    corpus = [dictionary.doc2bow(words)]
     lda_model = LdaModel(corpus, num_topics=1, id2word=dictionary, passes=15)
-    topics = lda_model.print_topics()
+    topics = lda_model.print_topics(num_words=4)
     return topics
 
 # Streamlit interface
-st.title("Live Speech-to-Text Conversation with Sentiment Analysis, Text Classification, and Topic Context")
+st.title("Live Speech-to-Text with Sentiment Analysis, Text Classification, and Topic Modeling")
 
 if st.button("Record Voice"):
     text = recognize_speech()
@@ -54,9 +59,16 @@ if st.button("Record Voice"):
         st.write(f"Polarity: {sentiment.polarity}, Subjectivity: {sentiment.subjectivity}")
 
         # Text Classification
-        classification = classify_text(text)
+        classifier = load_classifier()
+        classification = classify_text(text, classifier)
         st.write("Text Classification:")
         st.write(classification)
+
+        # Topic Modeling
+        topics = topic_modeling(text)
+        st.write("Topic Context:")
+        for topic in topics:
+            st.write(topic)
 
         # Topic Context
         topics = topic_modeling(text)
